@@ -1,0 +1,268 @@
+#!/usr/bin/python
+import RPi.GPIO as GPIO
+import time
+import spidev
+import serial
+import os
+##import geocoder
+spi = spidev.SpiDev()
+spi.open(0,0)
+spi.max_speed_hz=5000
+import geocoder
+##from twilio.rest import Client
+
+# Find these values at https://twilio.com/user/account
+##account_sid = "AC5173e0ab584cdcf00121c8c3eda9272d"
+##auth_token = "c65ca913190c5cd3d5b87eb96e2272a2"
+##
+##client = Client(account_sid, auth_token)
+
+#GPIO Mode (BOARD / BCM)
+GPIO.setmode(GPIO.BCM)
+ 
+#set GPIO Pins
+GPIO_TRIGGER = 20
+GPIO_ECHO = 21
+
+
+GPIO_TRIGGER1 = 26
+GPIO_ECHO1 = 19
+
+GPIO_TRIGGER2 = 13
+GPIO_ECHO2 = 6
+
+moisture = 2
+
+switch = 16
+ 
+#set GPIO direction (IN / OUT)
+GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
+GPIO.setup(GPIO_ECHO, GPIO.IN)
+
+
+GPIO.setup(GPIO_TRIGGER1, GPIO.OUT)
+GPIO.setup(GPIO_ECHO1, GPIO.IN)
+
+
+GPIO.setup(GPIO_TRIGGER2, GPIO.OUT)
+GPIO.setup(GPIO_ECHO2, GPIO.IN)
+
+
+GPIO.setup(2,GPIO.IN)
+##GPIO.setup(16,GPIO.IN)
+##GPIO.setup(12,GPIO.IN)
+GPIO.setup(16, GPIO.IN, pull_up_down=GPIO.PUD_UP)
+##GPIO.setup(16,GPIO.IN)
+##
+##GPIO.setup(4,GPIO.IN)
+##GPIO.setup(relay,GPIO.OUT)
+##
+##GPIO.setup(2,GPIO.IN)
+##g = geocoder.ip('me')
+##print(g.latlng)
+
+
+def distance():
+    # set Trigger to HIGH
+    GPIO.output(GPIO_TRIGGER, True)
+ 
+    # set Trigger after 0.01ms to LOW
+    time.sleep(0.00001)
+    GPIO.output(GPIO_TRIGGER, False)
+ 
+    StartTime = time.time()
+    StopTime = time.time()
+ 
+    # save StartTime
+    while GPIO.input(GPIO_ECHO) == 0:
+        StartTime = time.time()
+ 
+    # save time of arrival
+    while GPIO.input(GPIO_ECHO) == 1:
+        StopTime = time.time()
+ 
+    # time difference between start and arrival
+    TimeElapsed = StopTime - StartTime
+    # multiply with the sonic speed (34300 cm/s)
+    # and divide by 2, because there and back
+    distance = (TimeElapsed * 34300) / 2
+ 
+    return distance
+
+
+def distance1():
+    # set Trigger to HIGH
+    GPIO.output(GPIO_TRIGGER1, True)
+ 
+    # set Trigger after 0.01ms to LOW
+    time.sleep(0.00001)
+    GPIO.output(GPIO_TRIGGER1, False)
+ 
+    StartTime = time.time()
+    StopTime = time.time()
+ 
+    # save StartTime
+    while GPIO.input(GPIO_ECHO1) == 0:
+        StartTime = time.time()
+ 
+    # save time of arrival
+    while GPIO.input(GPIO_ECHO1) == 1:
+        StopTime = time.time()
+ 
+    # time difference between start and arrival
+    TimeElapsed = StopTime - StartTime
+    # multiply with the sonic speed (34300 cm/s)
+    # and divide by 2, because there and back
+    distance1 = (TimeElapsed * 34300) / 2
+ 
+    return distance1
+
+
+def distance2():
+    # set Trigger to HIGH
+    GPIO.output(GPIO_TRIGGER2, True)
+ 
+    # set Trigger after 0.01ms to LOW
+    time.sleep(0.00001)
+    GPIO.output(GPIO_TRIGGER2, False)
+ 
+    StartTime = time.time()
+    StopTime = time.time()
+ 
+    # save StartTime
+    while GPIO.input(GPIO_ECHO2) == 0:
+        StartTime = time.time()
+ 
+    # save time of arrival
+    while GPIO.input(GPIO_ECHO2) == 1:
+        StopTime = time.time()
+ 
+    # time difference between start and arrival
+    TimeElapsed = StopTime - StartTime
+    # multiply with the sonic speed (34300 cm/s)
+    # and divide by 2, because there and back
+    distance2 = (TimeElapsed * 34300) / 2
+ 
+    return distance2
+
+
+
+def ReadChannel(channel):
+  adc = spi.xfer2([1,(8+channel)<<4,0])
+  data = ((adc[1]&3) << 8) + adc[2]
+  return data
+ 
+# Function to convert data to voltage level,
+# rounded to specified number of decimal places.
+def ConvertVolts(data,places):
+  volts = (data * 3.3) / float(1023)
+  volts = round(volts,places)
+  return volts
+ 
+# Function to calculate temperature from
+# TMP36 data, rounded to specified
+# number of decimal places.
+def ConvertTemp(data,places):
+ 
+  # ADC Value
+  # (approx)  Temp  Volts
+  #    0      -50    0.00
+  #   78      -25    0.25
+  #  155        0    0.50
+  #  233       25    0.75
+  #  310       50    1.00
+  #  465      100    1.50
+  #  775      200    2.50
+  # 1023      280    3.30
+ 
+  temp = ((data * 330)/float(1023))-8 #40
+  temp = round(temp,places)
+  return temp
+
+
+
+
+##buzzer=1
+##
+##GPIO.output(relay,0)
+count=0
+
+g=geocoder.ip('me')
+print(g.latlng)
+while True:
+    
+    X_level = ReadChannel(0)
+    X_volts = ConvertVolts(X_level,2)
+
+    Y_level = ReadChannel(1)
+    Y_volts = ConvertVolts( Y_level,2)
+
+ 
+
+    print ("--------------------------------------------")
+
+    print("X: {}".format(X_level))
+    print("Y: {}".format(Y_level))
+ 
+
+
+       
+
+    dist = distance()
+    print ("Measured Distance at left= %.1f cm" % dist)
+    time.sleep(0.1)
+
+    if dist < 20:
+        print('left object detected ')
+        os.system("mpg321 /home/pi/Desktop/Project_Blind/ls.mp3")
+
+
+    dist1 = distance1()
+    print ("Measured Distance at right = %.1f cm" % dist1)
+    time.sleep(0.1)
+
+    if dist1 < 20:
+        print('right object detected ')
+        os.system("mpg321 /home/pi/Desktop/Project_Blind/rs.mp3")
+
+        
+    dist2 = distance2()
+    print ("Measured Distance at front = %.1f cm" % dist2)
+    time.sleep(0.1)
+
+
+    if dist2 > 20:
+        print('pot hole detected 20cm depth')
+        
+
+        
+    print ("--------------------------------------------")
+    time.sleep(1)
+
+    if((X_level>380)or(X_level<300)):
+      print('PERSON IS FALL DOWN')
+##      client.api.account.messages.create(
+##    to="+91-9945704413",
+##    from_="+12034576144 ",
+##    body='PERSON IS FALL DOWN at http://www.google.com/maps/?q="{},{}'.format('13.2866','77.5951'))
+     
+    time.sleep(1)
+
+    if((Y_level>380)or(Y_level<300)):
+      print('PERSON IS FALL DOWN ')
+##      client.api.account.messages.create(
+##    to="+91-9945704413",
+##    from_="+12034576144 ",
+##    body='PERSON IS FALL DOWN at http://www.google.com/maps/?q="{},{}'.format('13.2866','77.5951'))
+    time.sleep(1)
+        
+    if(GPIO.input(2)==False):
+        os.system("mpg321 mos.mp3")
+        print('moisture detected')
+##
+
+        
+
+
+
+    
